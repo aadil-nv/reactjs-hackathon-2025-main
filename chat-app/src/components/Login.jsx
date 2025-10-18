@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { login as loginAPI } from '../services/rocketchat';
-import './Login.css';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -17,7 +16,7 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
-    setError(''); // Clear error when user types
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -27,7 +26,6 @@ const Login = () => {
 
     try {
       const result = await loginAPI(formData.username, formData.password);
-      
       if (result.success) {
         login({
           authToken: result.authToken,
@@ -38,6 +36,8 @@ const Login = () => {
         setError(result.error || 'Login failed');
       }
     } catch (err) {
+            console.log("err",err);
+
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -45,14 +45,16 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h1>Rocket.Chat Login</h1>
-        <p className="login-subtitle">Connect to your local Rocket.Chat server</p>
-        
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label htmlFor="username">Username or Email</label>
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#667eea] to-[#764ba2] p-5">
+      <div className="bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] p-10 w-full max-w-md text-center">
+        <h1 className="text-[#333] text-2xl font-semibold mb-2">Rocket.Chat Login</h1>
+        <p className="text-[#666] text-sm mb-8">Connect to your local Rocket.Chat server</p>
+
+        <form onSubmit={handleSubmit} className="text-left">
+          <div className="mb-5">
+            <label htmlFor="username" className="block mb-1.5 text-[#333] font-medium text-sm">
+              Username or Email
+            </label>
             <input
               type="text"
               id="username"
@@ -62,11 +64,14 @@ const Login = () => {
               required
               disabled={loading}
               placeholder="Enter your username or email"
+              className="w-full p-3 border-2 border-[#e1e5e9] rounded-lg text-base focus:outline-none focus:border-[#667eea] disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
+
+          <div className="mb-5">
+            <label htmlFor="password" className="block mb-1.5 text-[#333] font-medium text-sm">
+              Password
+            </label>
             <input
               type="password"
               id="password"
@@ -76,26 +81,29 @@ const Login = () => {
               required
               disabled={loading}
               placeholder="Enter your password"
+              className="w-full p-3 border-2 border-[#e1e5e9] rounded-lg text-base focus:outline-none focus:border-[#667eea] disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
-          
+
           {error && (
-            <div className="error-message">
+            <div className="bg-red-100 text-red-700 p-3 rounded-md mb-5 border border-red-200 text-sm">
               {error}
             </div>
           )}
-          
-          <button 
-            type="submit" 
-            className="login-button"
+
+          <button
+            type="submit"
             disabled={loading}
+            className="w-full bg-gradient-to-br from-[#667eea] to-[#764ba2] text-white py-3 rounded-lg font-semibold text-base transition-transform duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-        
-        <div className="login-help">
-          <p>Make sure your Rocket.Chat server is running on localhost:3000</p>
+
+        <div className="mt-8 pt-5 border-t border-[#e1e5e9]">
+          <p className="text-[#666] text-xs m-0">
+            Make sure your Rocket.Chat server is running on localhost:3000
+          </p>
         </div>
       </div>
     </div>
@@ -103,4 +111,3 @@ const Login = () => {
 };
 
 export default Login;
-

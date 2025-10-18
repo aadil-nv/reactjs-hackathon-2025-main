@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import Message from './Message';
-import './MessageList.css';
 
 const MessageList = ({ messages, currentUserId }) => {
   const messagesEndRef = useRef(null);
@@ -15,8 +14,8 @@ const MessageList = ({ messages, currentUserId }) => {
 
   if (messages.length === 0) {
     return (
-      <div className="message-list">
-        <div className="no-messages">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-2.5">
+        <div className="flex justify-center items-center h-full text-[#666] text-base text-center">
           <p>No messages yet. Start the conversation!</p>
         </div>
       </div>
@@ -24,7 +23,13 @@ const MessageList = ({ messages, currentUserId }) => {
   }
 
   return (
-    <div className="message-list">
+    <div
+      className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-2.5 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+      style={{
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#c1c1c1 #f1f1f1',
+      }}
+    >
       {messages.map((message, index) => (
         <Message
           key={message._id || index}
@@ -38,4 +43,3 @@ const MessageList = ({ messages, currentUserId }) => {
 };
 
 export default MessageList;
-

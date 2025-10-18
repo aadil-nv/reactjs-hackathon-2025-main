@@ -4,7 +4,6 @@ import { getRooms, getMessages } from '../services/rocketchat';
 import RoomList from './RoomList';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
-import './ChatLayout.css';
 
 const ChatLayout = () => {
   const { authToken, userId, user, logout } = useAuth();
@@ -14,53 +13,38 @@ const ChatLayout = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Load rooms on mount
   useEffect(() => {
     const loadRooms = async () => {
       if (!authToken || !userId) return;
-      
       try {
         const result = await getRooms(authToken, userId);
         if (result.success) {
           setRooms(result.rooms);
-          // Select the first room by default
-          if (result.rooms.length > 0) {
-            setCurrentRoom(result.rooms[0]);
-          }
-        } else {
-          setError(result.error);
-        }
-      } catch (err) {
+          if (result.rooms.length > 0) setCurrentRoom(result.rooms[0]);
+        } else setError(result.error);
+      } catch {
         setError('Failed to load rooms');
       } finally {
         setLoading(false);
       }
     };
-
     loadRooms();
   }, [authToken, userId]);
 
-  // Load messages when room changes
   useEffect(() => {
     const loadMessages = async () => {
       if (!currentRoom || !authToken || !userId) return;
-      
       try {
         const result = await getMessages(currentRoom._id, authToken, userId);
-        if (result.success) {
-          setMessages(result.messages.reverse()); // Reverse to show oldest first
-        } else {
-          setError(result.error);
-        }
-      } catch (err) {
+        if (result.success) setMessages(result.messages.reverse());
+        else setError(result.error);
+      } catch {
         setError('Failed to load messages');
       }
     };
-
     loadMessages();
   }, [currentRoom, authToken, userId]);
 
-  // Poll for new messages every 3 seconds
   useEffect(() => {
     if (!currentRoom || !authToken || !userId) return;
 
@@ -69,16 +53,10 @@ const ChatLayout = () => {
         const result = await getMessages(currentRoom._id, authToken, userId);
         if (result.success) {
           const newMessages = result.messages.reverse();
-          setMessages(prevMessages => {
-            // Only update if we have new messages
-            if (newMessages.length !== prevMessages.length) {
-              return newMessages;
-            }
-            return prevMessages;
-          });
+          setMessages(prev => (newMessages.length !== prev.length ? newMessages : prev));
         }
-      } catch (err) {
-        console.error('Error polling messages:', err);
+      } catch (_err) {
+        console.error('Error polling messages:', _err);
       }
     };
 
@@ -91,81 +69,71 @@ const ChatLayout = () => {
     setMessages([]);
   };
 
-  const handleNewMessage = (message) => {
-    setMessages(prevMessages => [...prevMessages, message]);
-  };
-
-  const handleLogout = () => {
-    logout();
-  };
+  const handleNewMessage = (message) => setMessages(prev => [...prev, message]);
+  const handleLogout = () => logout();
 
   if (loading) {
     return (
-      <div className="chat-layout">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading chat...</p>
-        </div>
+      <div className="flex flex-col h-screen bg-gray-100 justify-center items-center text-gray-600">
+        <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+        <p>Loading chat...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="chat-layout">
-        <div className="error-container">
-          <h2>Error</h2>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()} className="retry-button">
-            Retry
-          </button>
-        </div>
+      <div className="flex flex-col h-screen justify-center items-center text-gray-600 text-center p-5">
+        <h2 className="text-red-600 mb-4 text-xl">Error</h2>
+        <p>{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded mt-4 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="chat-layout">
-      <div className="chat-header">
-        <div className="user-info">
-          <span className="user-name">{user?.name || user?.username}</span>
-          <span className="user-status">Online</span>
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Header */}
+      <div className="flex justify-between items-center px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex flex-col">
+          <span className="font-semibold text-gray-800 text-base">{user?.name || user?.username}</span>
+          <span className="text-green-500 text-xs mt-1">Online</span>
         </div>
-        <button onClick={handleLogout} className="logout-button">
+        <button
+          onClick={handleLogout}
+          className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm transition-colors"
+        >
           Logout
         </button>
       </div>
-      
-      <div className="chat-content">
-        <div className="sidebar">
-          <RoomList 
-            rooms={rooms} 
-            currentRoom={currentRoom} 
-            onRoomSelect={handleRoomSelect} 
-          />
+
+      {/* Chat content */}
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+        {/* Sidebar */}
+        <div className="w-full md:w-1/4 min-w-[250px] bg-white border-r border-gray-200 flex flex-col">
+          <RoomList rooms={rooms} currentRoom={currentRoom} onRoomSelect={handleRoomSelect} />
         </div>
-        
-        <div className="chat-area">
+
+        {/* Chat area */}
+        <div className="flex-1 flex flex-col bg-gray-100">
           {currentRoom ? (
             <>
-              <div className="chat-header-room">
-                <h3>#{currentRoom.name}</h3>
-                <p>{currentRoom.topic || 'No topic set'}</p>
+              <div className="px-6 py-4 bg-white border-b border-gray-200">
+                <h3 className="text-gray-800 text-lg mb-1">#{currentRoom.name}</h3>
+                <p className="text-gray-500 text-sm">{currentRoom.topic || 'No topic set'}</p>
               </div>
-              
-              <MessageList 
-                messages={messages} 
-                currentUserId={userId}
-              />
-              
-              <MessageInput 
-                roomId={currentRoom._id}
-                onNewMessage={handleNewMessage}
-              />
+
+              <MessageList messages={messages} currentUserId={userId} />
+              <MessageInput roomId={currentRoom._id} onNewMessage={handleNewMessage} />
             </>
           ) : (
-            <div className="no-room-selected">
-              <h3>Select a room to start chatting</h3>
+            <div className="flex flex-col justify-center items-center h-full text-gray-500 text-center">
+              <h3 className="text-gray-800 mb-2">Select a room to start chatting</h3>
               <p>Choose a room from the sidebar to view messages</p>
             </div>
           )}
@@ -176,4 +144,3 @@ const ChatLayout = () => {
 };
 
 export default ChatLayout;
-
