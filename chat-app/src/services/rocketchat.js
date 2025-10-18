@@ -96,6 +96,29 @@ export const getMessages = async (roomId, authToken, userId, count = 50) => {
   }
 };
 
+export const getIndivitualMessages = async (roomId,authToken, userId, count = 50) => {
+
+  
+  try {
+
+
+    const response = await api.get(`/im.history?roomId=${roomId}&count=${count}`, {
+      headers: getAuthHeaders(authToken, userId),
+    });
+
+    return {
+      success: true,
+      messages: response.data.messages || [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to get messages',
+    };
+  }
+};
+
+
 // Send a message
 export const sendMessage = async (roomId, message, authToken, userId) => {
   console.log("send messages is ==..>",roomId,message,authToken,userId);
@@ -154,8 +177,7 @@ export const logout = async (authToken, userId) => {
   }
 };
 
-// Signup / Register a new user
-// Fixed API function - accepts individual parameters
+
 export const signup = async (name, email, username, password) => {
   console.log("signup data =>", name, email, username, password);
   
@@ -186,5 +208,106 @@ export const signup = async (name, email, username, password) => {
       success: false,
       error: error.response?.data?.error || 'Network error during signup',
     };
+  }
+};
+
+
+export const getUsers = async (authToken, userId) => {
+  try {
+    const response = await api.get('/users.list', {
+      headers: {
+        'X-Auth-Token': authToken,
+        'X-User-Id': userId,
+      },
+    });
+
+    if (response.data.success) {
+      return {
+        success: true,
+        users: response.data.users,
+      };
+    } else {
+      return {
+        success: false,
+        error: response.data.error || 'Failed to fetch users',
+      };
+    }
+  } catch (error) {
+    console.error('Get users error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Network error while fetching users',
+    };
+  }
+};
+
+// Create or get direct message room
+export const createDirectMessage = async (authToken, userId, targetUsername) => {
+  console.log("createDirectMessage===>", (authToken, userId, targetUsername))
+  
+  try {
+    const response = await api.post('/im.create', 
+      { username: targetUsername },
+      {
+        headers: {
+          'X-Auth-Token': authToken,
+          'X-User-Id': userId,
+        },
+      }
+    );
+
+    if (response.data.success) {
+      return {
+        success: true,
+        room: response.data.room,
+      };
+    } else {
+      return {
+        success: false,
+        error: response.data.error || 'Failed to create direct message',
+      };
+    }
+  } catch (error) {
+    console.error('Create DM error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Network error while creating DM',
+    };
+  }
+};
+
+
+export const createChannel = async (name, authToken, userId, readOnly = false) => {
+  try {
+    const response = await api.post(
+      '/channels.create',
+      { name, readOnly },
+      { headers: getAuthHeaders(authToken, userId) }
+    );
+
+    if (response.data.success) {
+      return { success: true, channel: response.data.channel };
+    }
+    return { success: false, error: response.data.error || 'Failed to create channel' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.error || 'Network error' };
+  }
+};
+
+
+export const createGroup = async (name, authToken, userId, members = []) => {
+  try {
+    const response = await api.post(
+      '/groups.create',
+      { name, members },
+      { headers: getAuthHeaders(authToken, userId) }
+    );
+
+    if (response.data.success) {
+      return { success: true, group: response.data.group };
+    }
+    return { success: false, error: response.data.error || 'Failed to create group' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.error || 'Network error' };
   }
 };

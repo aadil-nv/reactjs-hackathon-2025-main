@@ -1,15 +1,33 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 
-const Message = ({ message, isOwn }) => {
+const Message = ({ message }) => {
+  console.log("message ==>", message);
+  
   const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
+    let date;
+    
+    if (timestamp && typeof timestamp === 'object' && timestamp.$date) {
+      date = new Date(timestamp.$date);
+    } else if (timestamp) {
+      date = new Date(timestamp);
+    } else {
+      return '--:--';
+    }
+    
+    if (isNaN(date.getTime())) {
+      console.error('Invalid timestamp:', timestamp);
+      return '--:--';
+    }
+    
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-
-
-
-
+  const user = useSelector((state) => state.auth.user);
+  
+  const isOwn = message.u?._id === user?._id || 
+                message.u?.username === user?.username ||
+                message.u?.userId === user?._id;
 
   return (
     <div className={`flex mb-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
@@ -24,15 +42,13 @@ const Message = ({ message, isOwn }) => {
       >
         <div className="flex justify-between items-center mb-1">
           <span className={`font-semibold text-[13px] mr-2 ${isOwn ? 'text-white/90' : 'text-[#667eea]'}`}>
-            {message.u?.name || message.u?.username || 'Unknown User'}
+            {message.u?.name || message.u?.username || user?.name || 'Unknown'}
           </span>
-          <span className="text-[11px] opacity-70">{formatTime(message.ts)}</span>
+          <span className="text-[11px] opacity-70">{formatTime(message.ts || message.message?.ts)}</span>
         </div>
-
         <div className="text-[14px] leading-[1.4] whitespace-pre-wrap">
           {message.msg}
         </div>
-
         {message.attachments && message.attachments.length > 0 && (
           <div className="mt-2">
             {message.attachments.map((attachment, index) => (

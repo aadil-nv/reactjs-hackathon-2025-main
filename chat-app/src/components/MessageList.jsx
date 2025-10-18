@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import Message from './Message';
 
 const MessageList = ({ messages, currentUserId }) => {
+  console.log("Message list is calling ===>",messages,currentUserId);
+  
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
