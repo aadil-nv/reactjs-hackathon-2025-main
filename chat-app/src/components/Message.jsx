@@ -2,7 +2,6 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 
 const Message = ({ message }) => {
-  console.log("message ==>", message);
   
   const formatTime = (timestamp) => {
     let date;

@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { getRooms, getMessages, getUsers, createDirectMessage, getIndivitualMessages, createChannel, createGroup } from '../services/rocketchat';
+import { getRooms, getChannelMessages, getUsers, createDirectMessage, getIndivitualMessages, createChannel, createGroup, joinChannel, getNotifications } from '../services/rocketchat';
 import ChatList from './ChatList';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleDnd } from '../redux/features/dndSlice';
+import { setNotifications, clearNotifications, markAsRead } from '../redux/features/notificationSlice';
 
 const ChatLayout = () => {
   const { authToken, userId, user, logout } = useAuth();  
@@ -18,23 +19,33 @@ const ChatLayout = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const isDndEnabled = useSelector((state) => state.dnd.isDndEnabled);
+  const notifications = useSelector((state) => state.notification.notifications);
+  const totalUnread = useSelector((state) => state.notification.totalUnread);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [creatingDM, setCreatingDM] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createType, setCreateType] = useState(''); // 'channel' or 'team'
+  const [createType, setCreateType] = useState('');
   const [channelName, setChannelName] = useState('');
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [joiningChannel, setJoiningChannel] = useState(false);
   const dispatch = useDispatch();
+  const notificationRef = useRef(null);
+  const [dismissedNotifications, setDismissedNotifications] = useState(new Set());
+  const [toastNotifications, setToastNotifications] = useState([]);
+  console.log("errr",error);
+  
 
   useEffect(() => {
     const loadRooms = async () => {
       if (!authToken || !userId) return;
       try {
         const result = await getRooms(authToken, userId);
+        console.log("result is #################################", result);
         
         if (result.success) {
           const channels = result.rooms.filter(room => room.t === 'c' || room.t === 'p');
@@ -57,7 +68,84 @@ const ChatLayout = () => {
     };
     loadRooms();
   }, [authToken, userId]);
-  
+
+  // Load notifications
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!authToken || !userId) return;
+      try {
+        const result = await getNotifications(authToken, userId);
+        if (result.success) {
+          dispatch(setNotifications(result.notifications));
+        }
+      } catch (err) {
+        console.error('Failed to load notifications:', err);
+      }
+    };
+    loadNotifications();
+  }, [authToken, userId, dispatch]);
+
+  // Poll notifications every 5 seconds
+  useEffect(() => {
+    if (!authToken || !userId) return;
+
+    const pollNotifications = async () => {
+      try {
+        const result = await getNotifications(authToken, userId);
+        if (result.success) {
+          // Filter out dismissed notifications
+          const filteredNotifications = result.notifications.filter(
+            notif => !dismissedNotifications.has(notif.roomId)
+          );
+
+          // Check for new notifications to show as toast
+          const existingRoomIds = new Set(notifications.map(n => n.roomId));
+          const newNotifications = filteredNotifications.filter(
+            notif => !existingRoomIds.has(notif.roomId) && notif.unread > 0
+          );
+
+          // Show toast for new notifications
+          if (newNotifications.length > 0) {
+            newNotifications.forEach(notif => {
+              const toastId = `${notif.roomId}-${Date.now()}`;
+              setToastNotifications(prev => [...prev, { ...notif, id: toastId }]);
+              
+              // Auto-dismiss toast after 5 seconds
+              setTimeout(() => {
+                setToastNotifications(prev => prev.filter(t => t.id !== toastId));
+              }, 5000);
+            });
+          }
+
+          dispatch(setNotifications(filteredNotifications));
+        }
+      } catch (err) {
+        console.error('Error polling notifications:', err);
+      }
+    };
+
+    const interval = setInterval(pollNotifications, 5000);
+    return () => clearInterval(interval);
+  }, [authToken, userId, dispatch, dismissedNotifications, notifications]);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  console.log("current room is @@@@@@@@", currentRoom);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -85,8 +173,17 @@ const ChatLayout = () => {
       }
       
       try {
+        console.log("1111========currentRoom============", currentRoom._id);
+        console.log("11111======authToken=================", authToken);
+        console.log("1111==========userId===========", userId);
         
-        const result = await getMessages(currentRoom._id, authToken, userId);
+        let result;
+        if (currentRoom.t === 'c' || currentRoom.t === 'p') {
+          result = await getChannelMessages(currentRoom._id, authToken, userId);
+        } else {
+          result = await getChannelMessages(currentRoom._id, authToken, userId);
+        }
+        
         if (result.success) {
           setMessages(result.messages.reverse());
         } else {
@@ -108,8 +205,18 @@ const ChatLayout = () => {
 
     const pollMessages = async () => {
       try {
+        console.log("222========currentRoom============", currentRoom._id);
+        console.log("=222======authToken=================", authToken);
+        console.log("=2222==========userId===========", userId);
         
-        const result = await getIndivitualMessages(currentRoom._id, authToken, userId);
+        let result;
+        if (currentRoom.t === 'c' || currentRoom.t === 'p') {
+          result = await getChannelMessages(currentRoom._id, authToken, userId);
+        } else {
+          result = await getIndivitualMessages(currentRoom._id, authToken, userId);
+        }
+
+        console.log("77777777777777777777777777", result);
         
         if (result.success) {
           const newMessages = result.messages.reverse();
@@ -128,6 +235,36 @@ const ChatLayout = () => {
     setCurrentRoom(room);
     setMessages([]);
     setError('');
+    dispatch(markAsRead(room._id));
+    // Remove from dismissed list when user opens the room
+    setDismissedNotifications(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(room._id);
+      return newSet;
+    });
+  };
+
+  const handleJoinChannel = async (channel) => {
+    setJoiningChannel(true);
+    setError('');
+    
+    try {
+      const result = await joinChannel(channel.name, authToken, userId);
+      if (result.success) {
+        setRooms(prev => prev.map(r => 
+          r._id === result.channel._id ? result.channel : r
+        ));
+        setCurrentRoom(result.channel);
+        setMessages([]);
+      } else {
+        setError(result.error || 'Failed to join channel');
+      }
+    } catch (err) {
+      console.error('Error joining channel:', err);
+      setError('Failed to join channel');
+    } finally {
+      setJoiningChannel(false);
+    }
   };
 
   const handleUserSelect = async (selectedUser) => {
@@ -173,6 +310,33 @@ const ChatLayout = () => {
   const handleToggleDnd = () => {
     dispatch(toggleDnd());
     setShowOptionsMenu(false);
+  };
+
+  const handleNotificationClick = (notification) => {
+    const room = [...rooms, ...directMessages].find(r => r._id === notification.roomId);
+    if (room) {
+      handleRoomSelect(room);
+      setShowNotifications(false);
+    }
+  };
+
+  const handleClearNotifications = () => {
+    // Add all current notification room IDs to dismissed list
+    const roomIds = notifications.map(n => n.roomId);
+    setDismissedNotifications(prev => new Set([...prev, ...roomIds]));
+    dispatch(clearNotifications());
+  };
+
+  const removeToast = (toastId) => {
+    setToastNotifications(prev => prev.filter(t => t.id !== toastId));
+  };
+
+  const handleToastClick = (notification) => {
+    const room = [...rooms, ...directMessages].find(r => r._id === notification.roomId);
+    if (room) {
+      handleRoomSelect(room);
+      removeToast(notification.id);
+    }
   };
 
   const openCreateModal = (type) => {
@@ -262,26 +426,88 @@ const ChatLayout = () => {
     );
   }
 
-  if (error && !currentRoom) {
-    return (
-      <div className="flex flex-col h-screen justify-center items-center text-gray-600 text-center p-5">
-        <h2 className="text-red-600 mb-4 text-xl">Error</h2>
-        <p>{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded mt-4 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  // if (error && !currentRoom) {
+  //   return (
+  //     <div className="flex flex-col h-screen justify-center items-center text-gray-600 text-center p-5">
+  //       <h2 className="text-red-600 mb-4 text-xl">Error</h2>
+  //       <p>{error}</p>
+  //       <button
+  //         onClick={() => window.location.reload()}
+  //         className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded mt-4 transition-colors"
+  //       >
+  //         Retry
+  //       </button>
+  //     </div>
+  //   );
+  // }
 
   const filteredItems = getFilteredItems();
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      {/* Logout Alert Modal */}
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
+        {toastNotifications.map((toast) => (
+          <div
+            key={toast.id}
+            className="bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80 pointer-events-auto transform transition-all duration-300 ease-in-out animate-slide-in"
+            style={{
+              animation: 'slideIn 0.3s ease-out'
+            }}
+          >
+            <style>{`
+              @keyframes slideIn {
+                from {
+                  transform: translateX(400px);
+                  opacity: 0;
+                }
+                to {
+                  transform: translateX(0);
+                  opacity: 1;
+                }
+              }
+            `}</style>
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-semibold">
+                {toast.type === 'd' ? '@' : '#'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-gray-800 truncate">
+                    {toast.name}
+                  </span>
+                  <button
+                    onClick={() => removeToast(toast.id)}
+                    className="text-gray-400 hover:text-gray-600 ml-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mb-2">
+                  {toast.mentions > 0 ? (
+                    <span className="text-red-600 font-medium">
+                      {toast.mentions} new mention{toast.mentions !== 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <span>
+                      {toast.unread} new message{toast.unread !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </p>
+                <button
+                  onClick={() => handleToastClick(toast)}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  View Message
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {showLogoutAlert && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
@@ -305,7 +531,6 @@ const ChatLayout = () => {
         </div>
       )}
 
-      {/* Create Channel/Team Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -436,17 +661,17 @@ const ChatLayout = () => {
         </div>
       )}
 
-      {/* Creating DM Loading */}
-      {creatingDM && (
+      {(creatingDM || joiningChannel) && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40">
           <div className="bg-white rounded-lg p-6 flex items-center gap-3">
             <div className="w-6 h-6 border-3 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-            <p className="text-gray-700">Starting conversation...</p>
+            <p className="text-gray-700">
+              {joiningChannel ? 'Joining channel...' : 'Starting conversation...'}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Header */}
       <div className="flex justify-between items-center px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex flex-col">
           <span className="font-semibold text-gray-800 text-base">{user?.name || user?.username}</span>
@@ -456,7 +681,87 @@ const ChatLayout = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Add Channel/Team Buttons */}
+          <div className="relative" ref={notificationRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded transition-colors"
+              title="Notifications"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {totalUnread > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+                <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                  <h3 className="font-semibold text-gray-800">Notifications</h3>
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={handleClearNotifications}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                
+                <div className="overflow-y-auto flex-1">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      </svg>
+                      <p className="text-sm">No new notifications</p>
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <button
+                        key={notif.roomId}
+                        onClick={() => handleNotificationClick(notif)}
+                        className="w-full px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 text-left"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-semibold">
+                            {notif.type === 'd' ? '@' : '#'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-gray-800 truncate">
+                                {notif.name}
+                              </span>
+                              {notif.unread > 0 && (
+                                <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
+                                  {notif.unread}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {notif.mentions > 0 ? (
+                                <span className="text-red-600 font-medium">
+                                  {notif.mentions} mention{notif.mentions !== 1 ? 's' : ''}
+                                </span>
+                              ) : (
+                                <span>
+                                  {notif.unread} unread message{notif.unread !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => openCreateModal('channel')}
             className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm transition-colors flex items-center gap-2"
@@ -479,7 +784,6 @@ const ChatLayout = () => {
             Team
           </button>
 
-          {/* Options Menu */}
           <div className="relative">
             <button
               onClick={() => setShowOptionsMenu(!showOptionsMenu)}
@@ -494,7 +798,7 @@ const ChatLayout = () => {
             </button>
 
             {showOptionsMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                 <button
                   onClick={handleToggleDnd}
                   className="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors flex items-center justify-between"
@@ -522,7 +826,6 @@ const ChatLayout = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
         <div className="w-full md:w-1/4 min-w-[250px] bg-white border-r border-gray-200 flex flex-col">
           <ChatList 
@@ -530,6 +833,7 @@ const ChatLayout = () => {
             currentRoom={currentRoom} 
             onRoomSelect={handleRoomSelect}
             onUserSelect={handleUserSelect}
+            onJoinChannel={handleJoinChannel}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             channelCount={rooms.length}
@@ -545,18 +849,18 @@ const ChatLayout = () => {
               <div className="px-6 py-4 bg-white border-b border-gray-200">
                 <h3 className="text-gray-800 text-lg mb-1">
                   {currentRoom.t === 'd' ? '@' : currentRoom.t ? '#' : '@'}
-                  {currentRoom.name || currentRoom.fname || currentRoom.username || currentRoom.usernames[0] }
+                  {currentRoom.name || currentRoom.fname || currentRoom.username || currentRoom.usernames?.[1]}
                 </h3>
                 <p className="text-gray-500 text-sm">
                   {currentRoom.topic || (currentRoom.t ? 'No topic set' : 'Start a new conversation')}
                 </p>
               </div>
 
-              {/* {error && ( */}
-                {/* <div className="px-6 py-3 bg-red-50 border-b border-white"> */}
-                  {/* <p className="text-red-600 text-sm">{error}</p> */}
-                {/* </div> */}
-              {/* // )} */}
+              {/* {error && (
+                <div className="px-6 py-3 bg-red-50 border-b border-red-200">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )} */}
 
               <MessageList messages={messages} currentUserId={userId} />
               <MessageInput roomId={currentRoom._id} onNewMessage={handleNewMessage} />
