@@ -37,7 +37,7 @@ const ChatLayout = () => {
   const notificationRef = useRef(null);
   const [dismissedNotifications, setDismissedNotifications] = useState(new Set());
   const [toastNotifications, setToastNotifications] = useState([]);
-  console.log("errr",error);
+  console.log("error ",error);
   
 
   useEffect(() => {
@@ -85,7 +85,7 @@ const ChatLayout = () => {
     loadNotifications();
   }, [authToken, userId, dispatch]);
 
-  // Poll notifications every 5 seconds
+  // Poll notifications every 5 secondsfsdfasd
   useEffect(() => {
     if (!authToken || !userId) return;
 
