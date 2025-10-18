@@ -1,21 +1,16 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useDispatch } from 'react-redux';
+import { login as loginAction } from '../redux/features/authSlice'; // Redux action
 import { login as loginAPI } from '../services/rocketchat';
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const dispatch = useDispatch(); // Redux dispatcher
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   };
 
@@ -27,17 +22,24 @@ const Login = () => {
     try {
       const result = await loginAPI(formData.username, formData.password);
       if (result.success) {
-        login({
-          authToken: result.authToken,
-          userId: result.userId,
-          user: result.user,
-        });
+        // Dispatch Redux login action (persisted automatically)
+        console.log("result===",result.authToken);
+        console.log("result",result.userId);
+        console.log("result",result.user);
+        
+        
+        dispatch(
+          loginAction({
+            authToken: result.authToken,
+            userId: result.userId,
+            user: result.user,
+          })
+        );
       } else {
         setError(result.error || 'Login failed');
       }
     } catch (err) {
-            console.log("err",err);
-
+      console.error('Login error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);

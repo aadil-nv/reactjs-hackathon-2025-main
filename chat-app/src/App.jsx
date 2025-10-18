@@ -1,29 +1,18 @@
 import React from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Login from './components/Login';
-import ChatLayout from './components/ChatLayout';
+import { Provider } from 'react-redux';
+import { store, persistor } from './redux/store';
+import { PersistGate } from 'redux-persist/integration/react';
+import { BrowserRouter as Router } from 'react-router-dom';
+import AppRoutes from './routes/AppRoutes';
 
-const AppContent = () => {
-  const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="app-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  return isAuthenticated ? <ChatLayout /> : <Login />;
-};
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
+const App = () => (
+  <Provider store={store}>
+    <PersistGate loading={<div>Loading...</div>} persistor={persistor}>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </PersistGate>
+  </Provider>
+);
 
 export default App;

@@ -98,6 +98,8 @@ export const getMessages = async (roomId, authToken, userId, count = 50) => {
 
 // Send a message
 export const sendMessage = async (roomId, message, authToken, userId) => {
+  console.log("send messages is ==..>",roomId,message,authToken,userId);
+  
   try {
     const response = await api.post('/chat.sendMessage', {
       message: {
@@ -152,3 +154,37 @@ export const logout = async (authToken, userId) => {
   }
 };
 
+// Signup / Register a new user
+// Fixed API function - accepts individual parameters
+export const signup = async (name, email, username, password) => {
+  console.log("signup data =>", name, email, username, password);
+  
+  try {
+    const response = await api.post('/users.register', {
+      name,
+      email,
+      username,
+      pass: password,
+    });
+
+    if (response.data.success) {
+      return {
+        success: true,
+        user: response.data.user,
+        userId: response.data.user._id || response.data.user.id,
+        authToken: response.data.data?.authToken || null, // Adjust based on your API response
+      };
+    } else {
+      return {
+        success: false,
+        error: response.data.error || 'Signup failed',
+      };
+    }
+  } catch (error) {
+    console.error('Signup error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Network error during signup',
+    };
+  }
+};
