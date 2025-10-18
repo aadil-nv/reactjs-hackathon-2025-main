@@ -35,7 +35,6 @@ const ChatLayout = () => {
       if (!authToken || !userId) return;
       try {
         const result = await getRooms(authToken, userId);
-        console.log("result is ##########", result);
         
         if (result.success) {
           const channels = result.rooms.filter(room => room.t === 'c' || room.t === 'p');
@@ -58,8 +57,6 @@ const ChatLayout = () => {
     };
     loadRooms();
   }, [authToken, userId]);
-
-  console.log("current roo is @@@@@@@@",currentRoom);
   
 
   useEffect(() => {
@@ -88,9 +85,6 @@ const ChatLayout = () => {
       }
       
       try {
-        console.log("1111========currentRoom============",currentRoom._id);
-        console.log("11111======authToken=================",authToken);
-        console.log("1111==========userId===========",userId);
         
         const result = await getMessages(currentRoom._id, authToken, userId);
         if (result.success) {
@@ -114,13 +108,8 @@ const ChatLayout = () => {
 
     const pollMessages = async () => {
       try {
-        console.log("222========currentRoom============",currentRoom._id);
-        console.log("=222======authToken=================",authToken);
-        console.log("=2222==========userId===========",userId);
         
         const result = await getIndivitualMessages(currentRoom._id, authToken, userId);
-
-        console.log("77777777777777777777777777",result);
         
         if (result.success) {
           const newMessages = result.messages.reverse();
@@ -495,11 +484,13 @@ const ChatLayout = () => {
             <button
               onClick={() => setShowOptionsMenu(!showOptionsMenu)}
               className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm transition-colors flex items-center gap-2"
+              title="Settings"
             >
-              Options
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
+              Settings
             </button>
 
             {showOptionsMenu && (
@@ -561,11 +552,11 @@ const ChatLayout = () => {
                 </p>
               </div>
 
-              {error && (
-                <div className="px-6 py-3 bg-red-50 border-b border-red-200">
+              {/* {error && ( */}
+                {/* <div className="px-6 py-3 bg-red-50 border-b border-white"> */}
                   {/* <p className="text-red-600 text-sm">{error}</p> */}
-                </div>
-              )}
+                {/* </div> */}
+              {/* // )} */}
 
               <MessageList messages={messages} currentUserId={userId} />
               <MessageInput roomId={currentRoom._id} onNewMessage={handleNewMessage} />
