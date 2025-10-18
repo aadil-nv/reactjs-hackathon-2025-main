@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { getRooms, getMessages, getUsers, createDirectMessage, getIndivitualMessages, createChannel, createGroup } from '../services/rocketchat';
+import { getRooms, getMessages, getUsers, createDirectMessage, getIndivitualMessages, createChannel, createGroup, editChannel, editTeam } from '../services/rocketchat';
 import ChatList from './ChatList';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
@@ -22,12 +22,18 @@ const ChatLayout = () => {
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [creatingDM, setCreatingDM] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createType, setCreateType] = useState(''); // 'channel' or 'team'
+  const [createType, setCreateType] = useState('');
   const [channelName, setChannelName] = useState('');
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState('');
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -57,7 +63,6 @@ const ChatLayout = () => {
     };
     loadRooms();
   }, [authToken, userId]);
-  
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -85,7 +90,6 @@ const ChatLayout = () => {
       }
       
       try {
-        
         const result = await getMessages(currentRoom._id, authToken, userId);
         if (result.success) {
           setMessages(result.messages.reverse());
@@ -108,7 +112,6 @@ const ChatLayout = () => {
 
     const pollMessages = async () => {
       try {
-        
         const result = await getIndivitualMessages(currentRoom._id, authToken, userId);
         
         if (result.success) {
@@ -239,6 +242,59 @@ const ChatLayout = () => {
     }
   };
 
+  const openEditModal = (room) => {
+    setEditingRoom(room);
+    setEditName(room.name || room.fname || '');
+    setEditDescription(room.description || room.topic || '');
+    setShowEditModal(true);
+    setEditError('');
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingRoom(null);
+    setEditName('');
+    setEditDescription('');
+    setEditError('');
+  };
+
+  const handleEdit = async () => {
+    if (!editName.trim()) {
+      setEditError('Name is required');
+      return;
+    }
+
+    setEditing(true);
+    setEditError('');
+
+    try {
+      let result;
+      const isTeam = editingRoom.t === 'p';
+      
+      if (isTeam) {
+        result = await editTeam(editingRoom._id, editName.trim(), editDescription.trim(), authToken, userId);
+      } else {
+        result = await editChannel(editingRoom._id, editName.trim(), editDescription.trim(), authToken, userId);
+      }
+
+      if (result.success) {
+        const updatedRoom = result.team || result.channel;
+        setRooms(prev => prev.map(r => r._id === editingRoom._id ? updatedRoom : r));
+        if (currentRoom?._id === editingRoom._id) {
+          setCurrentRoom(updatedRoom);
+        }
+        closeEditModal();
+      } else {
+        setEditError(result.error || 'Failed to update');
+      }
+    } catch (err) {
+      console.error('Error editing:', err);
+      setEditError('Failed to update. Please try again.');
+    } finally {
+      setEditing(false);
+    }
+  };
+
   const getFilteredItems = () => {
     switch (activeTab) {
       case 'channels':
@@ -299,6 +355,86 @@ const ChatLayout = () => {
                 className="bg-red-600 hover:bg-red-700 text-white py-2 px-6 rounded transition-colors"
               >
                 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Channel/Team Modal */}
+      {showEditModal && editingRoom && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Edit {editingRoom.t === 'p' ? 'Team' : 'Channel'}
+                </h3>
+                <button
+                  onClick={closeEditModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={editing}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {editError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
+                  {editError}
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="block text-gray-700 font-medium mb-2">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Enter name"
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={editing}
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-gray-700 font-medium mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Enter description (optional)"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  disabled={editing}
+                />
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-gray-200 flex gap-3 justify-end">
+              <button
+                onClick={closeEditModal}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-6 rounded transition-colors"
+                disabled={editing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEdit}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={editing || !editName.trim()}
+              >
+                {editing && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                )}
+                Save Changes
               </button>
             </div>
           </div>
@@ -456,7 +592,6 @@ const ChatLayout = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Add Channel/Team Buttons */}
           <button
             onClick={() => openCreateModal('channel')}
             className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm transition-colors flex items-center gap-2"
@@ -479,7 +614,6 @@ const ChatLayout = () => {
             Team
           </button>
 
-          {/* Options Menu */}
           <div className="relative">
             <button
               onClick={() => setShowOptionsMenu(!showOptionsMenu)}
@@ -543,20 +677,30 @@ const ChatLayout = () => {
           {currentRoom ? (
             <>
               <div className="px-6 py-4 bg-white border-b border-gray-200">
-                <h3 className="text-gray-800 text-lg mb-1">
-                  {currentRoom.t === 'd' ? '@' : currentRoom.t ? '#' : '@'}
-                  {currentRoom.name || currentRoom.fname || currentRoom.username || currentRoom.usernames[0] }
-                </h3>
-                <p className="text-gray-500 text-sm">
-                  {currentRoom.topic || (currentRoom.t ? 'No topic set' : 'Start a new conversation')}
-                </p>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-gray-800 text-lg mb-1">
+                      {currentRoom.t === 'd' ? '@' : currentRoom.t ? '#' : '@'}
+                      {currentRoom.name || currentRoom.fname || currentRoom.username || currentRoom.usernames[0]}
+                    </h3>
+                    <p className="text-gray-500 text-sm">
+                      {currentRoom.topic || currentRoom.description || (currentRoom.t ? 'No topic set' : 'Start a new conversation')}
+                    </p>
+                  </div>
+                  
+                  {currentRoom.t && currentRoom.t !== 'd' && (
+                    <button
+                      onClick={() => openEditModal(currentRoom)}
+                      className="ml-4 p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
-
-              {/* {error && ( */}
-                {/* <div className="px-6 py-3 bg-red-50 border-b border-white"> */}
-                  {/* <p className="text-red-600 text-sm">{error}</p> */}
-                {/* </div> */}
-              {/* // )} */}
 
               <MessageList messages={messages} currentUserId={userId} />
               <MessageInput roomId={currentRoom._id} onNewMessage={handleNewMessage} />

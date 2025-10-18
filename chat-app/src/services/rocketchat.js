@@ -311,3 +311,101 @@ export const createGroup = async (name, authToken, userId, members = []) => {
     return { success: false, error: error.response?.data?.error || 'Network error' };
   }
 };
+
+
+export const editChannel = async (roomId, name, description, authToken, userId) => {
+  try {
+    const response = await api.post('/channels.update', {
+      roomId,
+      name,
+      description,
+    }, {
+      headers: getAuthHeaders(authToken, userId),
+    });
+
+    return response.data.success
+      ? { success: true, channel: response.data.channel }
+      : { success: false, error: response.data.error };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.error || 'Failed to edit channel' };
+  }
+};
+
+
+export const editTeam = async (teamId, name, description, authToken, userId) => {
+  try {
+    const response = await api.post('/teams.update', {
+      teamId,
+      name,
+      description,
+    }, {
+      headers: getAuthHeaders(authToken, userId),
+    });
+
+    return response.data.success
+      ? { success: true, team: response.data.team }
+      : { success: false, error: response.data.error };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.error || 'Failed to edit team' };
+  }
+};
+
+
+export const deleteChannel = async (roomId, authToken, userId) => {
+  try {
+    const response = await api.post('/channels.delete', { roomId }, {
+      headers: getAuthHeaders(authToken, userId),
+    });
+
+    return response.data.success
+      ? { success: true }
+      : { success: false, error: response.data.error };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.error || 'Failed to delete channel' };
+  }
+};
+
+
+export const deleteTeam = async (teamId, authToken, userId) => {
+  try {
+    const response = await api.post('/teams.remove', { teamId }, {
+      headers: getAuthHeaders(authToken, userId),
+    });
+
+    return response.data.success
+      ? { success: true }
+      : { success: false, error: response.data.error };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.error || 'Failed to delete team' };
+  }
+};
+
+
+// export const getNotifications = async (authToken, userId) => {
+//   try {
+//     const response = await api.get('/subscriptions.get', {
+//       headers: getAuthHeaders(authToken, userId),
+//     });
+
+//     if (response.data.success) {
+//       // Filter for rooms with unread messages or mentions
+//       const notifications = response.data.update
+//         .filter(sub => sub.unread || sub.mention)
+//         .map(sub => ({
+//           roomId: sub.rid,
+//           name: sub.name,
+//           unread: sub.unread,
+//           mentions: sub.mention,
+//           type: sub.t, // 'c' = channel, 'd' = DM, 'p' = private group
+//         }));
+
+//       return { success: true, notifications };
+//     }
+
+//     return { success: false, error: response.data.error || 'Failed to fetch notifications' };
+//   } catch (error) {
+//     return { success: false, error: error.response?.data?.error || 'Network error' };
+//   }
+// };
+
+
