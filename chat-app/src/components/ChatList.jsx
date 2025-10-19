@@ -199,16 +199,7 @@ const ChatList = ({
           >
             Teams ({teamCount})
           </button>
-          <button
-            onClick={() => onTabChange('direct')}
-            className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'direct'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Direct ({directCount})
-          </button>
+      
           <button
             onClick={() => onTabChange('users')}
             className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
