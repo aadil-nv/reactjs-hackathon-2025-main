@@ -26,28 +26,19 @@ const Signup = () => {
     setLoading(true);
     setError('');
 
-    // Validate password match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
       setLoading(false);
       return;
     }
-
-
-    console.log("form data is s==>",formData.name);
-    console.log("form data is s==>",formData.email);
-    console.log("form data is s==>",formData.username);
-    console.log("form data is s==>",formData.password);
     
     try {
-      // Correct parameter order: name, email, username, password
       const result = await signupAPI(
         formData.name,
         formData.email,
@@ -56,10 +47,8 @@ const Signup = () => {
       );
       
       if (result.success) {
-        console.log("Signup successful", result);
         setSuccess(true);
         
-        // Auto-login after successful signup if authToken is available
         if (result.authToken) {
           dispatch(
             loginAction({

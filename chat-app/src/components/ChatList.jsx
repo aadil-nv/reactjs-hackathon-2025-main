@@ -15,7 +15,7 @@ const ChatList = ({
   currentUserId 
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('recent'); // 'recent', 'name', 'unread'
+  const [sortBy, setSortBy] = useState('recent'); 
   const [showFilters, setShowFilters] = useState(false);
   
   const totalCount = channelCount + teamCount + directCount;
@@ -65,7 +65,6 @@ const ChatList = ({
       } else if (sortBy === 'unread') {
         return (b.unread || 0) - (a.unread || 0);
       } else {
-        // Sort by recent (default)
         const dateA = a.lastMessage?.ts?.$date || a._updatedAt?.$date || 0;
         const dateB = b.lastMessage?.ts?.$date || b._updatedAt?.$date || 0;
         return dateB - dateA;
@@ -121,7 +120,6 @@ const ChatList = ({
           </div>
         </div>
 
-        {/* Filter and Sort Controls */}
         <div className="flex items-center gap-2 mb-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -167,7 +165,6 @@ const ChatList = ({
           )}
         </div>
 
-        {/* Tab Navigation - Updated with Teams */}
         <div className="grid grid-cols-5 gap-1.5">
           <button
             onClick={() => onTabChange('all')}

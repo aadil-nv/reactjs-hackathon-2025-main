@@ -2,15 +2,14 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  notifications: [], // all notification objects
-  totalUnread: 0, // total unread count
+  notifications: [], 
+  totalUnread: 0, 
 };
 
 const notificationSlice = createSlice({
   name: 'notification',
   initialState,
   reducers: {
-    // Set all notifications at once
     setNotifications: (state, action) => {
       state.notifications = action.payload || [];
       state.totalUnread = state.notifications.reduce(
@@ -19,7 +18,6 @@ const notificationSlice = createSlice({
       );
     },
 
-    // Add or update a single notification
     addNotification: (state, action) => {
       const existingIndex = state.notifications.findIndex(
         (n) => n.roomId === action.payload.roomId
@@ -40,7 +38,6 @@ const notificationSlice = createSlice({
       );
     },
 
-    // Remove a notification by room ID
     removeNotification: (state, action) => {
       state.notifications = state.notifications.filter(
         (n) => n.roomId !== action.payload
@@ -51,13 +48,11 @@ const notificationSlice = createSlice({
       );
     },
 
-    // Clear all notifications
     clearNotifications: (state) => {
       state.notifications = [];
       state.totalUnread = 0;
     },
 
-    // Mark a specific room as read
     markAsRead: (state, action) => {
       const notification = state.notifications.find(
         (n) => n.roomId === action.payload

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { login as loginAction } from '../redux/features/authSlice'; // Redux action
+import { login as loginAction } from '../redux/features/authSlice';
 import { login as loginAPI } from '../services/rocketchat';
 
 const Login = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const dispatch = useDispatch(); // Redux dispatcher
+  const dispatch = useDispatch(); 
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,7 +22,6 @@ const Login = () => {
     try {
       const result = await loginAPI(formData.username, formData.password);
       if (result.success) {
-        // Dispatch Redux login action (persisted automatically)
         console.log("result===",result.authToken);
         console.log("result",result.userId);
         console.log("result",result.user);

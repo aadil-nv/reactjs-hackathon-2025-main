@@ -16,12 +16,8 @@ const MessageInput = ({ roomId, onNewMessage }) => {
     setError('');
 
     try {
-      console.log("message ------>",message);
       
-      const result = await sendMessage(roomId, message.trim(), authToken, userId);
-
-      console.log("result is 000000000000",result);
-      
+      const result = await sendMessage(roomId, message.trim(), authToken, userId);      
 
       if (result.success) {
         const sentMessage = result.message || {

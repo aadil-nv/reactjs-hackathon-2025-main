@@ -221,13 +221,10 @@ const ChatLayout = () => {
       try {
         let result;
         if (currentRoom.t === 'c') {
-          // Channel messages
           result = await getChannelMessages(currentRoom._id, authToken, userId);
         } else if (currentRoom.t === 'p') {
-          // Private group messages
           result = await getGroupMessages(authToken, userId, currentRoom._id);
         } else if (currentRoom.t === 'd') {
-          // Direct messages
           result = await getIndivitualMessages(currentRoom._id, authToken, userId);
         }
 
@@ -249,7 +246,6 @@ const ChatLayout = () => {
     setMessages([]);
     setError('');
     dispatch(markAsRead(room._id));
-    // Remove from dismissed list when user opens the room
     setDismissedNotifications(prev => {
       const newSet = new Set(prev);
       newSet.delete(room._id);
@@ -264,7 +260,6 @@ const ChatLayout = () => {
     try {
       const result = await joinChannel(channel.name, authToken, userId);
       if (result.success) {
-        // Reload channels to get updated list with joined channel
         const channelsResult = await getAllChannels(authToken, userId);
         if (channelsResult.success) {
           setRooms(channelsResult.channels);
@@ -336,7 +331,6 @@ const ChatLayout = () => {
   };
 
   const handleClearNotifications = () => {
-    // Add all current notification room IDs to dismissed list
     const roomIds = notifications.map(n => n.roomId);
     setDismissedNotifications(prev => new Set([...prev, ...roomIds]));
     dispatch(clearNotifications());
@@ -407,7 +401,6 @@ const ChatLayout = () => {
         }
       } else if (createType === 'team') {
         result = await createGroup(channelName.trim(), authToken, userId, selectedMembers);
-        console.log("creating group ((((((((((((((())))))))))))))))");
         
         if (result.success) {
           setGroups(prev => [...prev, result.group]);
