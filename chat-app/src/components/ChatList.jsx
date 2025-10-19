@@ -21,11 +21,9 @@ const ChatList = ({
   const isUsersTab = activeTab === 'users';
   const user = useSelector((state) => state.auth.user);
 
-  // Filter and sort rooms based on search and sort criteria
   const filteredAndSortedRooms = useMemo(() => {
     let filtered = [...rooms];
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item => {
@@ -38,7 +36,7 @@ const ChatList = ({
         } else {
           const isDirect = item.t === 'd';
           const displayName = isDirect 
-            ? (item.usernames?.find(name => name !== currentUserId) || item.fname || item.name || '').toLowerCase()
+            ? (item.usernames?.find(name => name !== user.name) || '').toLowerCase()
             : (item.name || item.fname || '').toLowerCase();
           
           const message = (item.lastMessage?.msg || '').toLowerCase();
@@ -82,7 +80,6 @@ const ChatList = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
         <div className="flex justify-between items-center mb-3">
           <h3 className="m-0 text-gray-800 text-base font-semibold">
@@ -93,7 +90,6 @@ const ChatList = ({
           </span>
         </div>
 
-        {/* Search Bar */}
         <div className="mb-3 relative">
           <div className="relative">
             <input

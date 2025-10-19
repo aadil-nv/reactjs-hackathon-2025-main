@@ -37,8 +37,7 @@ const ChatLayout = () => {
   const notificationRef = useRef(null);
   const [dismissedNotifications, setDismissedNotifications] = useState(new Set());
   const [toastNotifications, setToastNotifications] = useState([]);
-  console.log("error ",error);
-  
+  // const [shakeNotification, setShakeNotification] = useState(false);
 
   useEffect(() => {
     const loadRooms = async () => {
@@ -85,7 +84,7 @@ const ChatLayout = () => {
     loadNotifications();
   }, [authToken, userId, dispatch]);
 
-  // Poll notifications every 5 secondsfsdfasd
+  // Poll notifications every 5 seconds
   useEffect(() => {
     if (!authToken || !userId) return;
 
@@ -325,6 +324,7 @@ const ChatLayout = () => {
     const roomIds = notifications.map(n => n.roomId);
     setDismissedNotifications(prev => new Set([...prev, ...roomIds]));
     dispatch(clearNotifications());
+    setShowNotifications(false);
   };
 
   const removeToast = (toastId) => {
@@ -426,20 +426,20 @@ const ChatLayout = () => {
     );
   }
 
-  // if (error && !currentRoom) {
-  //   return (
-  //     <div className="flex flex-col h-screen justify-center items-center text-gray-600 text-center p-5">
-  //       <h2 className="text-red-600 mb-4 text-xl">Error</h2>
-  //       <p>{error}</p>
-  //       <button
-  //         onClick={() => window.location.reload()}
-  //         className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded mt-4 transition-colors"
-  //       >
-  //         Retry
-  //       </button>
-  //     </div>
-  //   );
-  // }
+  if (error && !currentRoom) {
+    return (
+      <div className="flex flex-col h-screen justify-center items-center text-gray-600 text-center p-5">
+        <h2 className="text-red-600 mb-4 text-xl">Error</h2>
+        <p>{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded mt-4 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const filteredItems = getFilteredItems();
 
@@ -673,11 +673,25 @@ const ChatLayout = () => {
       )}
 
       <div className="flex justify-between items-center px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex flex-col">
-          <span className="font-semibold text-gray-800 text-base">{user?.name || user?.username}</span>
-          <span className={`text-xs mt-1 ${isDndEnabled ? 'text-yellow-500' : 'text-green-500'}`}>
-            {isDndEnabled ? 'Do Not Disturb' : 'Online'}
-          </span>
+        <div className="flex items-center gap-4">
+          {/* Product Logo */}
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xl">V</span>
+            </div>
+            <span className="font-bold text-xl text-gray-800">Valli</span>
+          </div>
+          
+          {/* Divider */}
+          <div className="h-8 w-px bg-gray-300"></div>
+          
+          {/* User Info */}
+          <div className="flex flex-col">
+            <span className="font-semibold text-gray-800 text-base">{user?.name || user?.username}</span>
+            <span className={`text-xs mt-1 ${isDndEnabled ? 'text-yellow-500' : 'text-green-500'}`}>
+              {isDndEnabled ? 'Do Not Disturb' : 'Online'}
+            </span>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -690,7 +704,14 @@ const ChatLayout = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              {totalUnread > 0 && (
+              {isDndEnabled && (
+                <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full w-5 h-5 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+              )}
+              {!isDndEnabled && totalUnread > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                   {totalUnread > 99 ? '99+' : totalUnread}
                 </span>
@@ -855,8 +876,8 @@ const ChatLayout = () => {
                   {currentRoom.topic || (currentRoom.t ? 'No topic set' : 'Start a new conversation')}
                 </p>
               </div>
-
-              {/* {error && (
+{/* 
+              {error && (
                 <div className="px-6 py-3 bg-red-50 border-b border-red-200">
                   <p className="text-red-600 text-sm">{error}</p>
                 </div>
