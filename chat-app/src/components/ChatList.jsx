@@ -9,6 +9,7 @@ const ChatList = ({
   activeTab, 
   onTabChange,
   channelCount,
+  teamCount,
   directCount,
   userCount,
   currentUserId 
@@ -17,7 +18,7 @@ const ChatList = ({
   const [sortBy, setSortBy] = useState('recent'); // 'recent', 'name', 'unread'
   const [showFilters, setShowFilters] = useState(false);
   
-  const totalCount = channelCount + directCount;
+  const totalCount = channelCount + teamCount + directCount;
   const isUsersTab = activeTab === 'users';
   const user = useSelector((state) => state.auth.user);
 
@@ -72,7 +73,7 @@ const ChatList = ({
     });
 
     return filtered;
-  }, [rooms, searchQuery, sortBy, currentUserId]);
+  }, [rooms, searchQuery, sortBy, user]);
 
   const handleClearSearch = () => {
     setSearchQuery('');
@@ -166,11 +167,11 @@ const ChatList = ({
           )}
         </div>
 
-        {/* Tab Navigation */}
-        <div className="grid grid-cols-4 gap-2">
+        {/* Tab Navigation - Updated with Teams */}
+        <div className="grid grid-cols-5 gap-1.5">
           <button
             onClick={() => onTabChange('all')}
-            className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+            className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
               activeTab === 'all'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -180,7 +181,7 @@ const ChatList = ({
           </button>
           <button
             onClick={() => onTabChange('channels')}
-            className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+            className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
               activeTab === 'channels'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -189,8 +190,18 @@ const ChatList = ({
             Channels ({channelCount})
           </button>
           <button
+            onClick={() => onTabChange('teams')}
+            className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+              activeTab === 'teams'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Teams ({teamCount})
+          </button>
+          <button
             onClick={() => onTabChange('direct')}
-            className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+            className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
               activeTab === 'direct'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -200,7 +211,7 @@ const ChatList = ({
           </button>
           <button
             onClick={() => onTabChange('users')}
-            className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+            className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
               activeTab === 'users'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -238,10 +249,26 @@ const ChatList = ({
               )}
             </svg>
             <p className="font-medium mb-1">
-              {searchQuery ? 'No results found' : `No ${activeTab === 'channels' ? 'channels' : activeTab === 'direct' ? 'direct messages' : activeTab === 'users' ? 'users found' : 'chats'}`}
+              {searchQuery 
+                ? 'No results found' 
+                : activeTab === 'channels' 
+                  ? 'No channels' 
+                  : activeTab === 'teams'
+                    ? 'No teams'
+                    : activeTab === 'direct' 
+                      ? 'No direct messages' 
+                      : activeTab === 'users' 
+                        ? 'No users found' 
+                        : 'No chats'}
             </p>
             <p className="text-xs text-gray-400">
-              {searchQuery ? 'Try adjusting your search terms' : activeTab === 'users' ? 'No other users available' : 'Start a conversation to get chatting!'}
+              {searchQuery 
+                ? 'Try adjusting your search terms' 
+                : activeTab === 'users' 
+                  ? 'No other users available' 
+                  : activeTab === 'teams'
+                    ? 'Create a team to get started!'
+                    : 'Start a conversation to get chatting!'}
             </p>
           </div>
         ) : (
@@ -249,6 +276,7 @@ const ChatList = ({
             const isUser = !item.t && item.username;
             const isActive = !isUser && currentRoom?._id === item._id;
             const isDirect = !isUser && item.t === 'd';
+            const isTeam = !isUser && item.t === 'p';
             
             let displayName, avatarContent, bgColor;
             
@@ -264,9 +292,9 @@ const ChatList = ({
               if (isDirect) {
                 avatarContent = displayName.charAt(0).toUpperCase();
                 bgColor = 'bg-gradient-to-br from-purple-400 to-pink-400';
-              } else if (item.t === 'p') {
-                avatarContent = '🔒';
-                bgColor = 'bg-orange-500';
+              } else if (isTeam) {
+                avatarContent = '👥';
+                bgColor = 'bg-gradient-to-br from-orange-400 to-red-400';
               } else {
                 avatarContent = '#';
                 bgColor = 'bg-indigo-600';
@@ -284,6 +312,10 @@ const ChatList = ({
               
               if (item.topic) {
                 return item.topic;
+              }
+              
+              if (isTeam) {
+                return 'Private team';
               }
               
               return 'No messages yet';
@@ -312,6 +344,9 @@ const ChatList = ({
                     </span>
                     {(isUser || isDirect) && (
                       <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0 shadow-sm" title="Online"></span>
+                    )}
+                    {isTeam && (
+                      <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">Team</span>
                     )}
                   </div>
                   <div className="text-gray-500 text-xs truncate">
