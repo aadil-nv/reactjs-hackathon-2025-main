@@ -78,6 +78,29 @@ export const getRooms = async (authToken, userId) => {
   }
 };
 
+
+export const getAllChannels = async (authToken, userId) => {
+  try {
+    const response = await api.get('/channels.list', {
+      headers: {
+        'X-Auth-Token': authToken,
+        'X-User-Id': userId,
+      },
+    });
+
+    return {
+      success: true,
+      channels: response.data.channels || [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to get channels',
+    };
+  }
+};
+
+
 // Get messages for a room
 export const getChannelMessages = async (roomId, authToken, userId, count = 50) => {
   try {
@@ -260,7 +283,6 @@ export const getUsers = async (authToken, userId) => {
   }
 };
 
-// Create or get direct message room
 export const createDirectMessage = async (authToken, userId, targetUsername) => {
   console.log("createDirectMessage===>", (authToken, userId, targetUsername))
   
@@ -328,6 +350,28 @@ export const createGroup = async (name, authToken, userId, members = []) => {
     return { success: false, error: response.data.error || 'Failed to create group' };
   } catch (error) {
     return { success: false, error: error.response?.data?.error || 'Network error' };
+  }
+};
+
+
+export const getGroupMessages = async (authToken, userId, roomId) => {
+  try {
+    const response = await api.get(`/groups.messages?roomId=${roomId}`, {
+      headers: {
+        'X-Auth-Token': authToken,
+        'X-User-Id': userId,
+      },
+    });
+
+    return {
+      success: true,
+      messages: response.data.messages || [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to fetch group messages',
+    };
   }
 };
 

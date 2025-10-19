@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { getRooms, getChannelMessages, getUsers, createDirectMessage, getIndivitualMessages, createChannel, createGroup, joinChannel, getNotifications } from '../services/rocketchat';
+import { getRooms, getChannelMessages, getUsers, createDirectMessage, getIndivitualMessages, createChannel, createGroup, joinChannel, getNotifications, getGroupMessages, getAllChannels } from '../services/rocketchat';
 import ChatList from './ChatList';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
@@ -12,6 +12,7 @@ const ChatLayout = () => {
   const { authToken, userId, user, logout } = useAuth();  
   const [rooms, setRooms] = useState([]);
   const [directMessages, setDirectMessages] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [users, setUsers] = useState([]);
   const [currentRoom, setCurrentRoom] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -37,29 +38,43 @@ const ChatLayout = () => {
   const notificationRef = useRef(null);
   const [dismissedNotifications, setDismissedNotifications] = useState(new Set());
   const [toastNotifications, setToastNotifications] = useState([]);
-  // const [shakeNotification, setShakeNotification] = useState(false);
 
   useEffect(() => {
     const loadRooms = async () => {
       if (!authToken || !userId) return;
       try {
-        const result = await getRooms(authToken, userId);
-        console.log("result is #################################", result);
+        // Load all user's rooms (for groups and DMs)
+        const roomsResult = await getRooms(authToken, userId);
+        console.log("Rooms result:", roomsResult);
         
-        if (result.success) {
-          const channels = result.rooms.filter(room => room.t === 'c' || room.t === 'p');
-          const dms = result.rooms.filter(room => room.t === 'd');
+        // Load all available channels separately
+        const channelsResult = await getAllChannels(authToken, userId);
+        console.log("Channels result:", channelsResult);
+        
+        if (roomsResult.success) {
+          const privateGroups = roomsResult.rooms.filter(room => room.t === 'p');
+          const dms = roomsResult.rooms.filter(room => room.t === 'd');
           
-          setRooms(channels);
+          setGroups(privateGroups);
           setDirectMessages(dms);
-          
-          if (result.rooms.length > 0) {
-            setCurrentRoom(result.rooms[0]);
-          }
-        } else {
-          setError(result.error);
         }
-      } catch {
+        
+        if (channelsResult.success) {
+          setRooms(channelsResult.channels);
+        }
+        
+        // Set initial current room
+        if (channelsResult.success && channelsResult.channels.length > 0) {
+          setCurrentRoom(channelsResult.channels[0]);
+        } else if (roomsResult.success && roomsResult.rooms.length > 0) {
+          setCurrentRoom(roomsResult.rooms[0]);
+        }
+        
+        if (!roomsResult.success && !channelsResult.success) {
+          setError(roomsResult.error || channelsResult.error);
+        }
+      } catch (err) {
+        console.error('Error loading rooms:', err);
         setError('Failed to load rooms');
       } finally {
         setLoading(false);
@@ -144,7 +159,6 @@ const ChatLayout = () => {
     };
   }, [showNotifications]);
 
-  console.log("current room is @@@@@@@@", currentRoom);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -172,15 +186,16 @@ const ChatLayout = () => {
       }
       
       try {
-        console.log("1111========currentRoom============", currentRoom._id);
-        console.log("11111======authToken=================", authToken);
-        console.log("1111==========userId===========", userId);
-        
         let result;
-        if (currentRoom.t === 'c' || currentRoom.t === 'p') {
+        if (currentRoom.t === 'c') {
+          // Channel messages
           result = await getChannelMessages(currentRoom._id, authToken, userId);
-        } else {
-          result = await getChannelMessages(currentRoom._id, authToken, userId);
+        } else if (currentRoom.t === 'p') {
+          // Private group messages
+          result = await getGroupMessages(authToken, userId, currentRoom._id);
+        } else if (currentRoom.t === 'd') {
+          // Direct messages
+          result = await getIndivitualMessages(currentRoom._id, authToken, userId);
         }
         
         if (result.success) {
@@ -204,19 +219,18 @@ const ChatLayout = () => {
 
     const pollMessages = async () => {
       try {
-        console.log("222========currentRoom============", currentRoom._id);
-        console.log("=222======authToken=================", authToken);
-        console.log("=2222==========userId===========", userId);
-        
         let result;
-        if (currentRoom.t === 'c' || currentRoom.t === 'p') {
+        if (currentRoom.t === 'c') {
+          // Channel messages
           result = await getChannelMessages(currentRoom._id, authToken, userId);
-        } else {
+        } else if (currentRoom.t === 'p') {
+          // Private group messages
+          result = await getGroupMessages(authToken, userId, currentRoom._id);
+        } else if (currentRoom.t === 'd') {
+          // Direct messages
           result = await getIndivitualMessages(currentRoom._id, authToken, userId);
         }
 
-        console.log("77777777777777777777777777", result);
-        
         if (result.success) {
           const newMessages = result.messages.reverse();
           setMessages(prev => (newMessages.length !== prev.length ? newMessages : prev));
@@ -250,9 +264,11 @@ const ChatLayout = () => {
     try {
       const result = await joinChannel(channel.name, authToken, userId);
       if (result.success) {
-        setRooms(prev => prev.map(r => 
-          r._id === result.channel._id ? result.channel : r
-        ));
+        // Reload channels to get updated list with joined channel
+        const channelsResult = await getAllChannels(authToken, userId);
+        if (channelsResult.success) {
+          setRooms(channelsResult.channels);
+        }
         setCurrentRoom(result.channel);
         setMessages([]);
       } else {
@@ -312,7 +328,7 @@ const ChatLayout = () => {
   };
 
   const handleNotificationClick = (notification) => {
-    const room = [...rooms, ...directMessages].find(r => r._id === notification.roomId);
+    const room = [...rooms, ...groups, ...directMessages].find(r => r._id === notification.roomId);
     if (room) {
       handleRoomSelect(room);
       setShowNotifications(false);
@@ -332,7 +348,7 @@ const ChatLayout = () => {
   };
 
   const handleToastClick = (notification) => {
-    const room = [...rooms, ...directMessages].find(r => r._id === notification.roomId);
+    const room = [...rooms, ...groups, ...directMessages].find(r => r._id === notification.roomId);
     if (room) {
       handleRoomSelect(room);
       removeToast(notification.id);
@@ -379,7 +395,11 @@ const ChatLayout = () => {
       if (createType === 'channel') {
         result = await createChannel(channelName.trim(), authToken, userId, isReadOnly);
         if (result.success) {
-          setRooms(prev => [...prev, result.channel]);
+          // Reload channels to get updated list
+          const channelsResult = await getAllChannels(authToken, userId);
+          if (channelsResult.success) {
+            setRooms(channelsResult.channels);
+          }
           setCurrentRoom(result.channel);
           closeCreateModal();
         } else {
@@ -387,8 +407,10 @@ const ChatLayout = () => {
         }
       } else if (createType === 'team') {
         result = await createGroup(channelName.trim(), authToken, userId, selectedMembers);
+        console.log("creating group ((((((((((((((())))))))))))))))");
+        
         if (result.success) {
-          setRooms(prev => [...prev, result.group]);
+          setGroups(prev => [...prev, result.group]);
           setCurrentRoom(result.group);
           closeCreateModal();
         } else {
@@ -407,13 +429,15 @@ const ChatLayout = () => {
     switch (activeTab) {
       case 'channels':
         return rooms;
+      case 'teams':
+        return groups;
       case 'direct':
         return directMessages;
       case 'users':
         return users;
       case 'all':
       default:
-        return [...rooms, ...directMessages];
+        return [...rooms, ...groups, ...directMessages];
     }
   };
 
@@ -469,7 +493,7 @@ const ChatLayout = () => {
             `}</style>
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-semibold">
-                {toast.type === 'd' ? '@' : '#'}
+                {toast.type === 'd' ? '@' : toast.type === 'p' ? '👥' : '#'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
@@ -749,7 +773,7 @@ const ChatLayout = () => {
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-semibold">
-                            {notif.type === 'd' ? '@' : '#'}
+                            {notif.type === 'd' ? '@' : notif.type === 'p' ? '👥' : '#'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
@@ -858,6 +882,7 @@ const ChatLayout = () => {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             channelCount={rooms.length}
+            teamCount={groups.length}
             directCount={directMessages.length}
             userCount={users.length}
             currentUserId={userId}
@@ -869,19 +894,13 @@ const ChatLayout = () => {
             <>
               <div className="px-6 py-4 bg-white border-b border-gray-200">
                 <h3 className="text-gray-800 text-lg mb-1">
-                  {currentRoom.t === 'd' ? '@' : currentRoom.t ? '#' : '@'}
+                  {currentRoom.t === 'd' ? '@' : currentRoom.t === 'p' ? '👥 ' : currentRoom.t ? '#' : '@'}
                   {currentRoom.name || currentRoom.fname || currentRoom.username || currentRoom.usernames?.[1]}
                 </h3>
                 <p className="text-gray-500 text-sm">
-                  {currentRoom.topic || (currentRoom.t ? 'No topic set' : 'Start a new conversation')}
+                  {currentRoom.topic || (currentRoom.t ? currentRoom.t === 'p' ? 'Private team' : 'No topic set' : 'Start a new conversation')}
                 </p>
               </div>
-{/* 
-              {error && (
-                <div className="px-6 py-3 bg-red-50 border-b border-red-200">
-                  <p className="text-red-600 text-sm">{error}</p>
-                </div>
-              )} */}
 
               <MessageList messages={messages} currentUserId={userId} />
               <MessageInput roomId={currentRoom._id} onNewMessage={handleNewMessage} />
@@ -889,7 +908,7 @@ const ChatLayout = () => {
           ) : (
             <div className="flex flex-col justify-center items-center h-full text-gray-500 text-center">
               <h3 className="text-gray-800 mb-2">Select a chat to start messaging</h3>
-              <p>Choose a channel or direct message from the sidebar</p>
+              <p>Choose a channel, team, or direct message from the sidebar</p>
             </div>
           )}
         </div>
