@@ -462,3 +462,90 @@ export const getNotifications = async (authToken, userId) => {
   };
 
 
+export const sendThreadMessage = async (authToken, userId, roomId, message, threadMessageId) => {
+  try {
+    const response = await api.post(
+      '/chat.sendMessage',
+      {
+        message: {
+          rid: roomId,
+          msg: message,
+          tmid: threadMessageId, // thread message ID (omit for normal messages)
+        },
+      },
+      {
+        headers: {
+          'X-Auth-Token': authToken,
+          'X-User-Id': userId,
+        },
+      }
+    );
+
+    return { success: true, message: response.data.message };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to send thread message',
+    };
+  }
+};
+
+
+export const getThreadMessages = async (authToken, userId, threadMessageId) => {
+  try {
+    const response = await api.get(`/chat.getThreadMessages?tmid=${threadMessageId}`, {
+      headers: {
+        'X-Auth-Token': authToken,
+        'X-User-Id': userId,
+      },
+    });
+
+    return { success: true, messages: response.data.messages || [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to get thread messages',
+    };
+  }
+};
+
+
+export const uploadImage = async (authToken, userId, roomId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('msg', ''); // optional message text
+
+    const response = await api.post(`/rooms.upload/${roomId}`, formData, {
+      headers: {
+        'X-Auth-Token': authToken,
+        'X-User-Id': userId,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return { success: true, file: response.data };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to upload image',
+    };
+  }
+};
+export const searchMessages = async (authToken, userId, roomId, searchText) => {
+  try {
+    const response = await api.get(`/chat.search?roomId=${roomId}&searchText=${encodeURIComponent(searchText)}`, {
+      headers: {
+        'X-Auth-Token': authToken,
+        'X-User-Id': userId,
+      },
+    });
+
+    return { success: true, messages: response.data.messages || [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to search messages',
+    };
+  }
+};
