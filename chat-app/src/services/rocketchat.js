@@ -6,14 +6,12 @@ const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
 });
 
-// Helper function to get auth headers
 const getAuthHeaders = (authToken, userId) => ({
   'X-Auth-Token': authToken,
   'X-User-Id': userId,
   'Content-Type': 'application/json',
 });
 
-// Authentication
 export const login = async (username, password) => {
   try {
     const response = await api.post('/login', {
@@ -42,7 +40,6 @@ export const login = async (username, password) => {
   }
 };
 
-// Get user info
 export const getUserInfo = async (authToken, userId) => {
   try {
     const response = await api.get('/me', {
@@ -60,7 +57,6 @@ export const getUserInfo = async (authToken, userId) => {
   }
 };
 
-// Get rooms/channels
 export const getRooms = async (authToken, userId) => {
   try {
     const response = await api.get('/rooms.get', {
@@ -77,7 +73,6 @@ export const getRooms = async (authToken, userId) => {
     };
   }
 };
-
 
 export const getAllChannels = async (authToken, userId) => {
   try {
@@ -101,7 +96,6 @@ export const getAllChannels = async (authToken, userId) => {
 };
 
 
-// Get messages for a room
 export const getChannelMessages = async (roomId, authToken, userId, count = 50) => {
   try {
     const response = await api.get(`/channels.history?roomId=${roomId}&count=${count}`, {
@@ -161,7 +155,6 @@ export const getIndivitualMessages = async (roomId,authToken, userId, count = 50
 };
 
 
-// Send a message
 export const sendMessage = async (roomId, message, authToken, userId) => {
   console.log("send messages is ==..>",roomId,message,authToken,userId);
   
@@ -186,7 +179,6 @@ export const sendMessage = async (roomId, message, authToken, userId) => {
   }
 };
 
-// Get room info
 export const getRoomInfo = async (roomId, authToken, userId) => {
   try {
     const response = await api.get(`/rooms.info?roomId=${roomId}`, {
@@ -204,7 +196,6 @@ export const getRoomInfo = async (roomId, authToken, userId) => {
   }
 };
 
-// Logout
 export const logout = async (authToken, userId) => {
   try {
     await api.post('/logout', {}, {
@@ -444,14 +435,13 @@ export const deleteTeam = async (teamId, authToken, userId) => {
 };
 
 
-  export const getNotifications = async (authToken, userId) => {
+export const getNotifications = async (authToken, userId) => {
     try {
       const response = await api.get('/subscriptions.get', {
         headers: getAuthHeaders(authToken, userId),
       });
 
       if (response.data.success) {
-        // Filter for rooms with unread messages or mentions
         const notifications = response.data.update
           .filter(sub => sub.unread || sub.mention)
           .map(sub => ({
@@ -459,7 +449,7 @@ export const deleteTeam = async (teamId, authToken, userId) => {
             name: sub.name,
             unread: sub.unread,
             mentions: sub.mention,
-            type: sub.t, // 'c' = channel, 'd' = DM, 'p' = private group
+            type: sub.t, 
           }));
 
         return { success: true, notifications };
